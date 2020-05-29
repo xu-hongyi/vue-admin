@@ -6,6 +6,11 @@ import Welcome from "@/views/Welcome"
 import User from '@/views/User'
 import Power from '@/views/Power'
 import Roles from '@/views/Roles'
+import Categories from '@/views/Categories'
+import Goods from '@/views/Goods'
+import Params from '@/views/Params'
+import Orders from '@/views/Orders'
+import Reports from '@/views/Reports'
 Vue.use(VueRouter)
 
 const routes = [
@@ -43,6 +48,31 @@ const routes = [
         path:"/roles",
         name:"roles",
         component:Roles
+      },
+      {
+        path:"/categories",
+        name:"cate",
+        component:Categories
+      },
+      {
+        path:"/goods",
+        name:"goods",
+        component:Goods
+      },
+      {
+        path:"/params",
+        name:"params",
+        component:Params
+      },
+      {
+        path:"/orders",
+        name:"orders",
+        component:Orders
+      },
+      {
+        path:"/reports",
+        name:"reports",
+        component:Reports
       }
     ]
   }
