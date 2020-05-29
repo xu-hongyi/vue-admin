@@ -6,7 +6,7 @@
       </div>
       <el-form
         class="login_form"
-        ref="loginForm"
+        ref="loginFormRef"
         :model="loginForm"
         :rules="rules"
       >
@@ -24,7 +24,7 @@
           ></el-input>
         </el-form-item>
         <el-form-item class="btns">
-          <el-button type="primary" @click="login">登录</el-button>
+          <el-button type="primary" @click="_login">登录</el-button>
           <el-button type="info" @click="resetLoginForm">重置</el-button>
         </el-form-item>
       </el-form>
@@ -33,6 +33,7 @@
 </template>
 
 <script>
+import { login } from '../api/login'
 export default {
   data() {
     return {
@@ -56,18 +57,17 @@ export default {
   },
   methods: {
     resetLoginForm() {
-      this.$refs.loginForm.resetFields()
+      this.$refs.loginFormRef.resetFields()
     },
-    login() {
-      this.$refs.loginForm.validate(async valid => {
+    _login() {
+      this.$refs.loginFormRef.validate(async valid => {
         if (!valid) return
-        const { data } = await this.$http.post('login', this.loginForm)
-        if (data.meta.status !== 200) {
-          this.$message.error('登陆失败')
-        } else {
-          this.$message.success('登陆成功')
-          window.sessionStorage.setItem('token', data.data.token)
+        try {
+          const data = await login(this.loginForm)
+          window.sessionStorage.setItem('token', data.token)
           this.$router.push('/home')
+        } catch (error) {
+          console.log(error)
         }
       })
     }

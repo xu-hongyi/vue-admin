@@ -50,6 +50,7 @@
 </template>
 
 <script>
+import {getMenuList} from '../api/home'
 export default {
   data() {
     return {
@@ -58,17 +59,12 @@ export default {
     }
   },
   created() {
-    this.getMenuList()
-    console.log(this.$route.path)
+    this._getMenuList()
   },
   methods: {
-    async getMenuList() {
-      const { data } = await this.$http.get('menus')
-      if (data.meta.status !== 200) {
-        this.$message.error(data.meta.msg)
-      } else {
-        this.menuList = data.data
-      }
+    async _getMenuList() {
+      const data = await getMenuList()
+      this.menuList = data;
     },
     loginOut() {
       window.sessionStorage.removeItem('token')

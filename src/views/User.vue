@@ -66,6 +66,7 @@
                 size="mini"
                 type="warning"
                 icon="el-icon-setting"
+                @click="setRole(row)"
               ></el-button>
             </el-tooltip>
           </template>
@@ -110,7 +111,7 @@
       </el-form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="addUser">确 定</el-button>
+        <el-button type="primary" @click="_addUser">确 定</el-button>
       </span>
     </el-dialog>
 
@@ -141,9 +142,41 @@
         <el-button type="primary" @click="submitEdit">确 定</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog title="分配角色" :visible.sync="setRoleDialog" width="50%" @close="setRoleDialogClose">
+      <div class="role_container">
+        <p>当前用户：{{ userInfo.username }}</p>
+        <p>当前角色：{{ userInfo.role_name }}</p>
+        <p>
+          分配新角色：
+          <el-select v-model="selectRoleId">
+            <el-option
+              v-for="item in rolesList"
+              :value="item.id"
+              :key="item.id"
+              :label="item.roleName"
+            ></el-option>
+          </el-select>
+        </p>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="setRoleDialog = false">取 消</el-button>
+        <el-button type="primary" @click="saveRoleInfo">确 定</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 <script>
+import {
+  getUserList,
+  updateSwitchUser,
+  addUser,
+  getUser,
+  updateUser,
+  deleteUser,
+  setRole
+} from '../api/user/user'
+import { getRoleList } from '../api/power'
 export default {
   data() {
     const checkEmail = (rule, value, callback) => {
@@ -252,115 +285,117 @@ export default {
             trigger: 'blur'
           }
         ]
-      }
+      },
+      setRoleDialog: false,
+      userInfo: {},
+      rolesList: [],
+      selectRoleId: ''
     }
   },
   created() {
-    this.getUserList()
+    this._getUserList()
   },
   methods: {
-    async getUserList() {
-      const { data } = await this.$http.get('users', {
-        params: this.queryInfo
-      })
-      if (data.meta.status !== 200) {
-        this.$message.error('获取用户信息失败')
-      } else {
-        this.userList = data.data.users
-        this.total = data.data.total
-      }
+    async _getUserList() {
+      const { total, users } = await getUserList(this.queryInfo)
+      this.total = total
+      this.userList = users
     },
     handleSizeChange(newSize) {
       this.queryInfo.pagesize = newSize
-      this.getUserList()
+      this._getUserList()
     },
     handleCurrentChange(newPage) {
       this.queryInfo.pagenum = newPage
-      this.getUserList()
+      this._getUserList()
     },
     async handleSwitchChange(info) {
-      const { data } = await this.$http.put(
-        `users/${info.id}/state/${info.mg_state}`
-      )
-      if (data.meta.status !== 200) {
-        info.mg_state = !info.mg_state
-        this.$message.error('修改用户状态失败')
-      } else {
-        this.$message.success('更改状态成功')
-      }
+      await updateSwitchUser(info.id, info.mg_state)
     },
     serchUserList() {
       this.queryInfo.pagenum = 1
-      this.getUserList()
+      this._getUserList()
     },
     handleDialogClose() {
       this.$refs.addFormRef.resetFields()
     },
-    addUser() {
+    _addUser() {
       this.$refs.addFormRef.validate(async valid => {
         if (!valid) return
-        const { data } = await this.$http.post('users', this.addForm)
-        if (data.meta.status !== 201) {
-          this.$message.error('添加用户失败')
-        } else {
-          this.$message.success('添加用户成功')
-          this.dialogVisible = false
-          this.getUserList()
-        }
+        await addUser(this.addForm)
+        this.dialogVisible = false
+        this._getUserList()
       })
     },
     async showEditDialog(id) {
-      const { data } = await this.$http.get(`users/${id}`)
-      if (data.meta.status !== 200) {
-        this.$message.error('查询用户信息失败')
-        return
-      }
-      this.editForm = data.data
+      const data = await getUser(id)
+      this.editForm = data
       this.editDialog = true
     },
     submitEdit() {
       this.$refs.editFormRef.validate(async valid => {
         if (!valid) return
-        const { data } = await this.$http.put(`users/${this.editForm.id}`, {
+        await updateUser(this.editForm.id, {
           email: this.editForm.email,
           mobile: this.editForm.mobile
         })
-        if (data.meta.status !== 200) {
-          this.$message.error('修改用户失败')
-        } else {
-          this.$message.success('修改用户成功')
-          this.editDialog = false
-          this.getUserList()
-        }
+        this.editDialog = false
+        this._getUserList()
       })
     },
     editFormClose() {
       this.$refs.editFormRef.resetFields()
     },
     async deleteUser(id) {
-      const result = await this.$confirm('此操作将删除用户数据,是否继续？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).catch(err => err)
-      if(result !== 'confirm'){
-        this.$message.info("已取消删除操作")
-        return;
-      }
-      const {data} = await this.$http.delete(`users/${id}`)
-      if(data.meta.status === 200){
-        const curPagesize = this.total % this.queryInfo.pagesize;
-        if(curPagesize === 1){
-          this.queryInfo.pagenum <= 1 ? this.queryInfo.pagenum = 1 : this.queryInfo.pagenum --;
+      const result = await this.$confirm(
+        '此操作将删除用户数据,是否继续？',
+        '提示',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
         }
-        await this.getUserList()
-        this.$message.success("删除成功")
-        return;
+      ).catch(err => err)
+      if (result !== 'confirm') {
+        this.$message.info('已取消删除操作')
+        return
       }
-      this.$message.error("删除失败")
+      await deleteUser(id)
+      const curPagesize = this.total % this.queryInfo.pagesize
+      if (curPagesize === 1) {
+        this.queryInfo.pagenum <= 1
+          ? (this.queryInfo.pagenum = 1)
+          : this.queryInfo.pagenum--
+      }
+      await this._getUserList()
+    },
+    async setRole(userInfo) {
+      this.userInfo = userInfo
+      const data = await getRoleList()
+      this.rolesList = data
+      this.setRoleDialog = true
+    },
+    async saveRoleInfo() {
+      if (!this.selectRoleId) {
+        this.$message.error('请选择要分配的角色')
+        return
+      }
+      await setRole(this.userInfo.id, { rid: this.selectRoleId })
+      await this._getUserList()
+      this.setRoleDialog = false
+    },
+    setRoleDialogClose(){
+      this.userInfo = {};
+      this.selectRoleId = ''
     }
   }
 }
 </script>
 
-<style></style>
+<style lang="scss" scoped>
+.role_container{
+  > p{
+    margin: 20px 0;
+  }
+}
+</style>
